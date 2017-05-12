@@ -6,7 +6,6 @@ all:
 make libs:
 	@mkdir -p obj
 	gcc -c -fPIC libgoodbye.c -o obj/libgoodbye.o
-	@cd obj
 	gcc -c libhello.c -o obj/libhello.o
 	@mkdir -p obj/libs
 	gcc obj/libgoodbye.o -shared -o obj/libs/libgoodbye.so
