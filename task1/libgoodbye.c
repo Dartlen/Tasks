@@ -1,6 +1,6 @@
 #include <stdio.h>
-
-void goodbye()
-{
-	printf("Goodbye world\n");
+#include <stdlib.h>
+char * goodbye()
+{	
+	return "Goodbye world\n";
 }

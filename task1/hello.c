@@ -1,10 +1,13 @@
 #include <stdio.h>
 #include "libgoodbye.h"
-void hello();
 
+char * hello();
+char * goodbye();
 int main()
 {
-	hello();
+	const char *tmp = hello();
+	printf("%s",tmp);
+	
 	goodbye();
 	
 	return 0;
