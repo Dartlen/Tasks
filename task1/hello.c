@@ -1,11 +1,14 @@
 #include <stdio.h>
 #include "libgoodbye.h"
-void hello();
+#include "libhello.h"
 
 int main()
 {
-	hello();
-	goodbye();
+	char *tmp = hello();
+	printf("%s",tmp);
+	
+	tmp = goodbye();
+	printf("%s",tmp);
 	
 	return 0;
 }
