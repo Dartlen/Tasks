@@ -8,7 +8,8 @@ int main()
 	const char *tmp = hello();
 	printf("%s",tmp);
 	
-	goodbye();
+	const char *tmpgoodbye = goodbye();
+	printf("%s",tmpgoodbye);
 	
 	return 0;
 }
