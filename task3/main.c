@@ -17,9 +17,13 @@
 
 #define handle_error_en(en, msg) do {errno = en; perror(msg); exit(EXIT_FAILURE); } while (0)
 
+
+
 struct Memory {
 	int  value;
 	int  flag;
+	int pidB;
+	
 	};
 void startThread(pthread_t *t, void* (*p)())
 {
@@ -36,25 +40,68 @@ int square(int number)
 
 void synch_signal (int sig)
 {
-	if (sig == SIGUSR1)
-    {
-        printf("Received SIGUSR1!\n");
-    }
+	printf("Received SIGUSR1!\n");
+	
+	//kill(0,SIGUSR2);
+	
+	int            ShmID;
+	struct Memory  *ShmPTR;
+	key_t ShmKEY;
+	ShmKEY = ftok(".key",100);
+	ShmID = shmget(ShmKEY, sizeof(struct Memory), IPC_CREAT | 0666);
+	if (ShmID < 0) {
+	  printf("*** shmget error (server) ***\n");
+	  exit(1);
+	}
+	ShmPTR = (struct Memory *) shmat(ShmID, NULL, 0);	
+	
+	ShmPTR->pidB=0;
+	
+	shmdt(ShmPTR);
+	shmctl(ShmID ,IPC_RMID,NULL); 
+	
+	
+	
+	
 }
+
 int processA(int *mypipefd, int *mypipefd2)
 {
 	printf("start thread A\n");
 	printf("hello, input number:\n");
 	int writenumber = 0;
-	close(mypipefd[WRITE]);   
-	close(mypipefd2[READ]);   
+
+	close(mypipefd[WRITE]);
+	close(mypipefd2[READ]); 
+	int            ShmID;
+	struct Memory  *ShmPTR;
+	key_t ShmKEY;
+	ShmKEY = ftok(".key",100);
+	ShmID = shmget(ShmKEY, sizeof(struct Memory), IPC_CREAT | 0666);
+	if (ShmID < 0) {
+	  printf("*** shmget error (server) ***\n");
+	  exit(1);
+	}
+	ShmPTR = (struct Memory *) shmat(ShmID, NULL, 0);	
+
 	while(1)
     {
-	    scanf("%d",&writenumber);
-	    write(mypipefd2[WRITE],&writenumber,sizeof(writenumber));
+
+			if(ShmPTR->pidB!=0)
+			{
+				scanf("%d",&writenumber);
+				write(mypipefd2[WRITE],&writenumber,sizeof(writenumber));
+			}
+			else
+			{
+				break;
+			}
+		
     }
 	close(mypipefd[READ]);
 	close(mypipefd2[WRITE]);
+	shmdt(ShmPTR);
+	shmctl(ShmID ,IPC_RMID,NULL); 
 	printf("end thread A\n");
 	return 0;
 }
@@ -66,36 +113,45 @@ int processB(int *mypipefd, int *mypipefd2)
 	int ch;
 
 	signal(SIGUSR1, synch_signal);
-
+	
 	int            ShmID;
 	struct Memory  *ShmPTR;
 	key_t ShmKEY;
-	ShmKEY = ftok("t",100);
+	ShmKEY = ftok(".key",100);
 	ShmID = shmget(ShmKEY, sizeof(struct Memory), IPC_CREAT | 0666);
 	if (ShmID < 0) {
 	  printf("*** shmget error (server) ***\n");
 	  exit(1);
 	}
-	ShmPTR = (struct Memory *) shmat(ShmID, NULL, 0);		
+	ShmPTR = (struct Memory *) shmat(ShmID, NULL, 0);	
+	
+	ShmPTR->pidB = getpid(); 
+	
 	int readnumber = 0;
 	close(mypipefd[READ]);      
-	close(mypipefd2[WRITE]);   
-	while(1)
+	close(mypipefd2[WRITE]);  
+	
+	
+
+	while(ShmPTR->pidB!=0)
     {
  
-	read(mypipefd2[READ],&readnumber,sizeof(readnumber));
+		read(mypipefd2[READ],&readnumber,sizeof(readnumber));
 
-	ch= square(readnumber);
+		ch= square(readnumber);
 
-	ShmPTR->value=ch;
-	ShmPTR->flag=1;
+		ShmPTR->value=ch;
+		ShmPTR->flag=1;
+	
 
     }	
     close(mypipefd[WRITE]);    
 	close(mypipefd2[READ]);
-		
+	
+	shmdt(ShmPTR);
 	shmctl(ShmID ,IPC_RMID,NULL); 
         
+        	
 	printf("end thread B\n");
 	return 0;
 }
@@ -105,7 +161,7 @@ void * threadC1()
 	int shm_id;
 	key_t ShmKEY;
 	struct Memory * shm_buf;
-	ShmKEY = ftok("t",100);
+	ShmKEY = ftok(".key",100);
 	shm_id = shmget ( ShmKEY, sizeof(struct Memory ), 0666 );
 	
 	if ( shm_id == -1 ) {
@@ -118,7 +174,7 @@ void * threadC1()
 		fprintf ( stderr, " shmat() error\n");
 		return NULL;
 	}
-	while(1)
+	while(shm_buf->pidB!=0)
 	{
         if(shm_buf->flag==1)
 			{
@@ -134,7 +190,7 @@ void *threadC2()
 	int shm_id;
 	key_t ShmKEY;
 	struct Memory * shm_buf;
-	ShmKEY = ftok("t",100);
+	ShmKEY = ftok(".key",100);
 	shm_id = shmget ( ShmKEY, sizeof(struct Memory ), 0666 );
 	
 	if ( shm_id == -1 ) {
@@ -147,20 +203,24 @@ void *threadC2()
 		fprintf ( stderr, " shmat() error\n");
 		return NULL;
 	}
-	while (1)
+
+	
+	while (shm_buf->pidB!=0)
 	{
 		if(shm_buf->flag==2)
 		{
 			shm_buf->flag=0;
 			printf("#############\nSquare=%d\n#############\n",shm_buf->value);
+			
 			if(shm_buf->value==100)
-				kill(0, SIGUSR1);
+				kill(shm_buf->pidB, SIGUSR1);
 		}
 		else
 		{
 			printf("I am live\n");
+			sleep(2);
 		}
-		sleep(1);
+		
 	}
 	shmdt(shm_buf);
 	shmctl(shm_id, IPC_RMID, NULL);
@@ -206,7 +266,8 @@ int main()
   }
   if (pid > 0) 
   {
-      processA(mypipefd, mypipefd2);   
+
+        processA(mypipefd, mypipefd2);   
   }
   else 
   { 
@@ -219,6 +280,7 @@ int main()
 	}
 	if(pid2>0)
 	{
+		
 		processB(mypipefd, mypipefd2);
 	}
 	else
