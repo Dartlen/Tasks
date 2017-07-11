@@ -1,0 +1,24 @@
+
+BASEDIR:=$(TASK1_DIR)
+
+OUT_TARG_DIR:=$(BASEDIR)/target_bin
+TARGET_OBJ_DIR:=target_obj
+
+
+
+CO_EXTRA_LIBS:= -lpthread -pthread
+
+EXTRA_LIBS:=$(CO_EXTRA_LIBS) 
+
+CO_DEGINES=-D_GNU_SOURCE
+
+CROSS_CC = gcc
+CROSS_LD = gcc
+CROSS_AR = ar
+CROSSRANLIB = ranlib
+CROSS_STRIP = strip
+
+CROSS_CFLAGS = -Wall -g -o2 -fPIC $(CO_DEFINES)
+CROSS_LDFLAGS = $(CROSS_CFLAGS)
+
+CROSS_INCLUDES = -l. -l$(TASK1_DIR)
